@@ -156,22 +156,24 @@ if __name__ == "__main__":
     logger.info("Regions extracted.")
     
     # plot the regions
-    n_pnts = pnts.shape[0]
-    n_frames  = dsub_cube.shape[0]
-    with PdfPages("regions.pdf") as pdf:
-        for i in range(n_frames):
-            num_rows = n_pnts // n_lines
-            fig, axs = plt.subplots(num_rows, n_lines, figsize=(5*n_lines, 
-                                                                5*num_rows))
-            plt.subplots_adjust(hspace=1.5)
-            
-            for j, ax in enumerate(axs.flat):
-                ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', vmin=vmin, 
-                          vmax=vmax)
-                ax.set_title(f"Frame {i+1}, Point {j+1}")
-            plt.tight_layout()
-            pdf.savefig(fig)
-            plt.close()
+    plot = False
+    if plot:
+        n_pnts = pnts.shape[0]
+        n_frames  = dsub_cube.shape[0]
+        with PdfPages("regions.pdf") as pdf:
+            for i in range(n_frames):
+                num_rows = n_pnts // n_lines
+                fig, axs = plt.subplots(num_rows, n_lines, figsize=(5*n_lines, 
+                                                                    5*num_rows))
+                plt.subplots_adjust(hspace=1.5)
+                
+                for j, ax in enumerate(axs.flat):
+                    ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', vmin=vmin, 
+                            vmax=vmax)
+                    ax.set_title(f"Frame {i+1}, Point {j+1}")
+                plt.tight_layout()
+                pdf.savefig(fig)
+                plt.close()
                 
         
     
