@@ -1,9 +1,11 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from astropy.io import fits
 import glob
 import pandas as pd
 import re
 import logging
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 def extract_variables_and_export(filenames, pattern, column_names=None):
@@ -51,6 +53,24 @@ def extract_variables_and_export(filenames, pattern, column_names=None):
 
     return df
 
+def extract_ROI(datacube, pnts, box_size):
+    """This function extracts regions of interest around points in the datacube"""
+    n_points = pnts.shape[0]
+    n_frames = datacube.shape[0]
+    
+    # initialize an empty array to store the extracted regions
+    n_regions = n_points * n_frames
+    regions = np.zeros((n_regions, box_size*2, box_size*2))
+    
+    for i in range(n_points):
+        x_discrete = int(pnts[i, 0])
+        y_discrete = int(pnts[i, 1])
+        pnt_ROIS = datacube[:, y_discrete-box_size:y_discrete+box_size,
+                            x_discrete-box_size:x_discrete+box_size]
+        regions[i::n_points] = pnt_ROIS
+        
+    return regions
+
 
 if __name__ == "__main__":
     # Set up logging
@@ -63,12 +83,22 @@ if __name__ == "__main__":
     # dark frame to subtract
     dark_frame = "data/raw/cool4B.01.15/cool4B.01.15.YJ2.DARK.fits"
     # fits extension to load
-    ext = 1
+    ext = 2
+    # size of analysis region
+    box_size = 30 # pixels
+    # points file
+    pnts_file = "data/raw/cool4B.01.15/points20240527_143953.txt"
+    # plotting cuts
+    vmin, vmax = 0, 1000
+    # number of lines to plot
+    n_lines = 3
+    
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
     
     # Get a list of arc fits files in the folder 
     filenames = glob.glob(folder)
+    print(len(filenames))
     # check if any files were found
     if not filenames:
         logger.error(f"No files found in folder: {folder}")
@@ -98,12 +128,45 @@ if __name__ == "__main__":
         logger.info(f"Loading file {fn}")
         with fits.open(fn) as hdul:
             cube[i] = hdul[ext].data
-    
+        
     # dark subtraction
+    logger.info("Subtracting dark frame...")
     if dark_frame is not None:
         with fits.open(dark_frame) as hdul:
             dark_data = hdul[ext].data
             dsub_cube = cube - dark_data
+    logger.info("Dark subtraction complete.")
+    
+    # load the points file
+    logger.info(f"Loading points file: {pnts_file}")
+    pnts = np.loadtxt(pnts_file)
+    
+    # extract the regions around the points
+    logger.info("Extracting regions around points...")
+    ROI_arr = extract_ROI(dsub_cube, pnts, box_size)
+    logger.info("Regions extracted.")
+    
+    # plot the regions
+    n_pnts = pnts.shape[0]
+    n_frames  = dsub_cube.shape[0]
+    with PdfPages("regions.pdf") as pdf:
+        for i in range(n_frames):
+            num_rows = n_pnts // n_lines
+            fig, axs = plt.subplots(num_rows, n_lines, figsize=(5*n_lines, 
+                                                                5*num_rows))
+            plt.subplots_adjust(hspace=1.5)
+            
+            for j, ax in enumerate(axs.flat):
+                ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', vmin=vmin, 
+                          vmax=vmax)
+                ax.set_title(f"Frame {i+1}, Point {j+1}")
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close()
+                
+        
+    
+    
     
     
      
