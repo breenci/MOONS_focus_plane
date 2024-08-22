@@ -53,6 +53,7 @@ def extract_variables_and_export(filenames, pattern, column_names=None):
 
     return df
 
+
 def extract_ROI(datacube, pnts, box_size):
     """This function extracts regions of interest around points in the datacube"""
     n_points = pnts.shape[0]
@@ -61,6 +62,9 @@ def extract_ROI(datacube, pnts, box_size):
     # initialize an empty array to store the extracted regions
     n_regions = n_points * n_frames
     regions = np.zeros((n_regions, box_size*2, box_size*2))
+    frame_idxs = np.repeat(np.arange(n_frames), n_points)
+    x = np.zeros(n_regions)
+    y = np.zeros(n_regions)
     
     for i in range(n_points):
         x_discrete = int(pnts[i, 0])
@@ -68,8 +72,12 @@ def extract_ROI(datacube, pnts, box_size):
         pnt_ROIS = datacube[:, y_discrete-box_size:y_discrete+box_size,
                             x_discrete-box_size:x_discrete+box_size]
         regions[i::n_points] = pnt_ROIS
+        x[i::n_points] = x_discrete
+        y[i::n_points] = y_discrete
+    
+    region_table = pd.DataFrame({'frame': frame_idxs, 'x': x, 'y': y})
         
-    return regions
+    return regions, region_table
 
 
 if __name__ == "__main__":
@@ -143,7 +151,8 @@ if __name__ == "__main__":
     
     # extract the regions around the points
     logger.info("Extracting regions around points...")
-    ROI_arr = extract_ROI(dsub_cube, pnts, box_size)
+    ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, box_size)
+    ROI_table.to_csv("ROI_table.csv", index=False)
     logger.info("Regions extracted.")
     
     # plot the regions
