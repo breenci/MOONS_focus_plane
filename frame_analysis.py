@@ -10,7 +10,7 @@ from matplotlib.patches import Ellipse
 from lmfit.models import Gaussian2dModel
 
 
-def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='X'):
+def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='DAM_X'):
     """Does a regex search on filenames and extracts variables based on pattern
 
     :param filenames: List of filenames to be searched
@@ -110,14 +110,13 @@ if __name__ == "__main__":
     
     # Get a list of arc fits files in the folder 
     filenames = glob.glob(folder)
-    print(len(filenames))
     # check if any files were found
     if not filenames:
         logger.error(f"No files found in folder: {folder}")
         raise FileNotFoundError(f"No files found in folder: {folder}")
 
     # Define custom column names (optional)
-    custom_column_names = ["X", "Y", "Z"]
+    custom_column_names = ["DAM_X", "DAM_Y", "DAM_Z"]
     
     logger.info("Extracting DAM positions from filenames....")
     # Call the function and get the extracted variables as a Pandas DataFrame
@@ -166,11 +165,11 @@ if __name__ == "__main__":
     FWHMx = np.zeros(len(full_table))
     FWHMy = np.zeros(len(full_table))
     
+    logger.info("Fitting 2D Gaussian to each region...")
     for i in range(len(full_table)):
         frame = ROI_arr[i]
         X, Y = np.meshgrid(np.arange(frame.shape[0]), np.arange(frame.shape[1]))
         # flatten X, Y and box to guess the parameters
-        # TODO: fit 2D Gaussian to frame
         model = Gaussian2dModel()
         params = model.make_params(amplitude=3000, centerx=30, centery=30, 
                                    sigmax=3, sigmay=3)
@@ -184,6 +183,7 @@ if __name__ == "__main__":
         Yc[i] = fit_result.params['centery'].value
         FWHMx[i] = fit_result.params['fwhmx'].value
         FWHMy[i] = fit_result.params['fwhmy'].value
+    logger.info("Fitting complete.")
     
     full_table['Xc'] = Xc
     full_table['Yc'] = Yc
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     full_table.to_csv("full_table.csv", index=False)
     
     # plot the regions
-    plot = True
+    plot = False
     if plot:
         n_pnts = pnts.shape[0]
         n_frames  = dsub_cube.shape[0]
