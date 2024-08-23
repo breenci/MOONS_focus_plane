@@ -125,7 +125,6 @@ if __name__ == "__main__":
     
     # sort the DataFrame by the X column
     # implications for analysis later?
-    extracted_data.to_csv("extracted_data.csv", index=False)
     fn_list = extracted_data['filename'].tolist()
     
     # load each file and append to data cube
@@ -155,9 +154,7 @@ if __name__ == "__main__":
     logger.info("Extracting regions around points...")
     ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, 
                                      extracted_data.loc[:,'frame_id'], box_size)
-    ROI_table.to_csv("ROI_table.csv", index=False)
     full_table = pd.merge(extracted_data, ROI_table, on='frame_id')
-    full_table.to_csv("full_table.csv", index=False)
     logger.info("Regions extracted.")
     
     # plot the regions
