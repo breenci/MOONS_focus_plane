@@ -6,6 +6,8 @@ import pandas as pd
 import re
 import logging
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.patches import Ellipse
+from lmfit.models import Gaussian2dModel
 
 
 def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='X'):
@@ -157,8 +159,43 @@ if __name__ == "__main__":
     full_table = pd.merge(extracted_data, ROI_table, on='frame_id')
     logger.info("Regions extracted.")
     
+    # loop through each ROI and fit a 2D Gaussian
+    # store the fit parameters in a DataFrame
+    Xc = np.zeros(len(full_table))
+    Yc = np.zeros(len(full_table))
+    FWHMx = np.zeros(len(full_table))
+    FWHMy = np.zeros(len(full_table))
+    
+    for i in range(len(full_table)):
+        frame = ROI_arr[i]
+        X, Y = np.meshgrid(np.arange(frame.shape[0]), np.arange(frame.shape[1]))
+        # flatten X, Y and box to guess the parameters
+        # TODO: fit 2D Gaussian to frame
+        model = Gaussian2dModel()
+        params = model.make_params(amplitude=3000, centerx=30, centery=30, 
+                                   sigmax=3, sigmay=3)
+        params['centerx'].set(min=0, max=60)
+        params['centery'].set(min=0, max=60)
+        params['fwhmx'].set(min=2, max=20)
+        params['fwhmy'].set(min=2, max=20)
+        
+        fit_result = model.fit(frame, params, x=X, y=Y)
+        Xc[i] = fit_result.params['centerx'].value
+        Yc[i] = fit_result.params['centery'].value
+        FWHMx[i] = fit_result.params['fwhmx'].value
+        FWHMy[i] = fit_result.params['fwhmy'].value
+    
+    full_table['Xc'] = Xc
+    full_table['Yc'] = Yc
+    full_table['FWHMx'] = FWHMx
+    full_table['FWHMy'] = FWHMy
+    
+    # save the table to a csv file
+    logger.info("Saving table to csv file...")
+    full_table.to_csv("full_table.csv", index=False)
+    
     # plot the regions
-    plot = False
+    plot = True
     if plot:
         n_pnts = pnts.shape[0]
         n_frames  = dsub_cube.shape[0]
@@ -172,6 +209,14 @@ if __name__ == "__main__":
                 for j, ax in enumerate(axs.flat):
                     ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', vmin=vmin, 
                             vmax=vmax)
+                    ax.scatter(full_table.loc[i*n_pnts+j, 'Xc'], 
+                               full_table.loc[i*n_pnts+j, 'Yc'],
+                               color='red', s=10)
+                    ax.add_patch(Ellipse((full_table.loc[i*n_pnts+j, 'Xc'],
+                                          full_table.loc[i*n_pnts+j, 'Yc']),
+                                        full_table.loc[i*n_pnts+j, 'FWHMx'],
+                                        full_table.loc[i*n_pnts+j, 'FWHMy'],
+                                        edgecolor='red', facecolor='none'))
                     ax.set_title(f"Frame {i+1}, Point {j+1}")
                 plt.tight_layout()
                 pdf.savefig(fig)
