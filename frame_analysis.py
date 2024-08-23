@@ -8,7 +8,7 @@ import logging
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def extract_variables_and_export(filenames, pattern, column_names=None):
+def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='X'):
     """Does a regex search on filenames and extracts variables based on pattern
 
     :param filenames: List of filenames to be searched
@@ -50,11 +50,13 @@ def extract_variables_and_export(filenames, pattern, column_names=None):
 
     df = pd.DataFrame(variable_data, columns=column_names)
     df['filename'] = filenames
-
+    df = df.sort_values(by=sort_by, ignore_index=True)
+    df['frame_id'] = np.arange(len(df))
+    
     return df
 
 
-def extract_ROI(datacube, pnts, box_size):
+def extract_ROI(datacube, pnts, cube_ids, box_size):
     """This function extracts regions of interest around points in the datacube"""
     n_points = pnts.shape[0]
     n_frames = datacube.shape[0]
@@ -62,7 +64,7 @@ def extract_ROI(datacube, pnts, box_size):
     # initialize an empty array to store the extracted regions
     n_regions = n_points * n_frames
     regions = np.zeros((n_regions, box_size*2, box_size*2))
-    frame_idxs = np.repeat(np.arange(n_frames), n_points)
+    frame_idxs = np.repeat(cube_ids, n_points)
     x = np.zeros(n_regions)
     y = np.zeros(n_regions)
     
@@ -75,7 +77,7 @@ def extract_ROI(datacube, pnts, box_size):
         x[i::n_points] = x_discrete
         y[i::n_points] = y_discrete
     
-    region_table = pd.DataFrame({'frame': frame_idxs, 'x': x, 'y': y})
+    region_table = pd.DataFrame({'frame_id': frame_idxs, 'x': x, 'y': y})
         
     return regions, region_table
 
@@ -123,7 +125,7 @@ if __name__ == "__main__":
     
     # sort the DataFrame by the X column
     # implications for analysis later?
-    extracted_data = extracted_data.sort_values(by="X")
+    extracted_data.to_csv("extracted_data.csv", index=False)
     fn_list = extracted_data['filename'].tolist()
     
     # load each file and append to data cube
@@ -151,8 +153,11 @@ if __name__ == "__main__":
     
     # extract the regions around the points
     logger.info("Extracting regions around points...")
-    ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, box_size)
+    ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, 
+                                     extracted_data.loc[:,'frame_id'], box_size)
     ROI_table.to_csv("ROI_table.csv", index=False)
+    full_table = pd.merge(extracted_data, ROI_table, on='frame_id')
+    full_table.to_csv("full_table.csv", index=False)
     logger.info("Regions extracted.")
     
     # plot the regions
