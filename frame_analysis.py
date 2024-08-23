@@ -8,6 +8,8 @@ import logging
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Ellipse
 from lmfit.models import Gaussian2dModel
+import argparse
+import os
 
 
 def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='DAM_X'):
@@ -87,35 +89,35 @@ def extract_ROI(datacube, pnts, cube_ids, box_size):
 if __name__ == "__main__":
     # Set up logging
     logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     
-    # define some parameters
-    # folder with test data
-    folder = "data/raw/cool4B.01.15/*ARC*.fits"
-    # dark frame to subtract
-    dark_frame = "data/raw/cool4B.01.15/cool4B.01.15.YJ2.DARK.fits"
-    # fits extension to load
-    ext = 2
-    # size of analysis region
-    box_size = 30 # pixels
-    # points file
-    pnts_file = "data/raw/cool4B.01.15/points20240527_143953.txt"
-    # plotting cuts
-    vmin, vmax = 0, 1000
-    # number of lines to plot
-    n_lines = 3
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Find the best focus position")
+    # add an argument for folder containing the data
+    parser.add_argument("folder", help="Folder containing the data")
+    # folder = "data/raw/cool4B.01.15/*ARC*.fits"
+    # add optional arguments for box size, preload selection, and dark
+    parser.add_argument("-b", "--box_size", type=int, default=30, help="Size of the box around each point")
+    parser.add_argument("-p", "--preload_selection", help="File containing preloaded selection")
+    parser.add_argument("-d", "--dark", help="Dark frame to subtract from the data")
+    # add an optional argument to specify a vmin and vmax for the images
+    parser.add_argument("-v", "--cmap_range", nargs=2, type=int, help='Min and max values for colormap')
+    parser.add_argument("-e", "--ext", type=int, default=1, help='FITS extension to read')
+    parser.add_argument("--Nlines", type=int, default=3, help='Number of lines to plot')
+    # parse the arguments
+    args = parser.parse_args()
     
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
     
     # Get a list of arc fits files in the folder 
-    filenames = glob.glob(folder)
+    filenames = glob.glob(args.folder)
     # check if any files were found
     if not filenames:
-        logger.error(f"No files found in folder: {folder}")
-        raise FileNotFoundError(f"No files found in folder: {folder}")
+        logger.error(f"No files found in folder: {args.folder}")
+        raise FileNotFoundError(f"No files found in folder: {args.folder}")
 
-    # Define custom column names (optional)
+    # Define custom column names
     custom_column_names = ["DAM_X", "DAM_Y", "DAM_Z"]
     
     logger.info("Extracting DAM positions from filenames....")
@@ -137,24 +139,24 @@ if __name__ == "__main__":
     for i, fn in enumerate(fn_list):
         logger.info(f"Loading file {fn}")
         with fits.open(fn) as hdul:
-            cube[i] = hdul[ext].data
+            cube[i] = hdul[args.ext].data
         
     # dark subtraction
     logger.info("Subtracting dark frame...")
-    if dark_frame is not None:
-        with fits.open(dark_frame) as hdul:
-            dark_data = hdul[ext].data
+    if args.dark is not None:
+        with fits.open(args.dark) as hdul:
+            dark_data = hdul[args.ext].data
             dsub_cube = cube - dark_data
     logger.info("Dark subtraction complete.")
     
     # load the points file
-    logger.info(f"Loading points file: {pnts_file}")
-    pnts = np.loadtxt(pnts_file)
+    logger.info(f"Loading points file: {args.preload_selection}")
+    pnts = np.loadtxt(args.preload_selection)
     
     # extract the regions around the points
     logger.info("Extracting regions around points...")
     ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, 
-                                     extracted_data.loc[:,'frame_id'], box_size)
+                                     extracted_data.loc[:,'frame_id'], args.box_size)
     full_table = pd.merge(extracted_data, ROI_table, on='frame_id')
     logger.info("Regions extracted.")
     
@@ -195,20 +197,20 @@ if __name__ == "__main__":
     full_table.to_csv("full_table.csv", index=False)
     
     # plot the regions
-    plot = False
+    plot = True
     if plot:
         n_pnts = pnts.shape[0]
         n_frames  = dsub_cube.shape[0]
         with PdfPages("regions.pdf") as pdf:
             for i in range(n_frames):
-                num_rows = n_pnts // n_lines
-                fig, axs = plt.subplots(num_rows, n_lines, figsize=(5*n_lines, 
+                num_rows = n_pnts // args.Nlines
+                fig, axs = plt.subplots(num_rows, args.Nlines, figsize=(5*args.Nlines, 
                                                                     5*num_rows))
                 plt.subplots_adjust(hspace=1.5)
-                
+                plt.suptitle(f"Frame: {os.path.basename(fn_list[i])}")
                 for j, ax in enumerate(axs.flat):
-                    ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', vmin=vmin, 
-                            vmax=vmax)
+                    ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', 
+                              vmin=args.cmap_range[0], vmax=args.cmap_range[1])
                     ax.scatter(full_table.loc[i*n_pnts+j, 'Xc'], 
                                full_table.loc[i*n_pnts+j, 'Yc'],
                                color='red', s=10)
