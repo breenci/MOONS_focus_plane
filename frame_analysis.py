@@ -181,8 +181,8 @@ if __name__ == "__main__":
         params['fwhmy'].set(min=2, max=20)
         
         fit_result = model.fit(frame, params, x=X, y=Y)
-        Xc[i] = fit_result.params['centerx'].value
-        Yc[i] = fit_result.params['centery'].value
+        Xc[i] = fit_result.params['centerx'].value + int(full_table.loc[i, 'x']) - args.box_size
+        Yc[i] = fit_result.params['centery'].value + int(full_table.loc[i, 'y']) - args.box_size
         FWHMx[i] = fit_result.params['fwhmx'].value
         FWHMy[i] = fit_result.params['fwhmy'].value
     logger.info("Fitting complete.")
@@ -195,9 +195,11 @@ if __name__ == "__main__":
     # save the table to a csv file
     logger.info("Saving table to csv file...")
     full_table.to_csv("full_table.csv", index=False)
+    logger.info("Table saved.")
     
     # plot the regions
     plot = True
+    logger.info("Plotting regions...")
     if plot:
         n_pnts = pnts.shape[0]
         n_frames  = dsub_cube.shape[0]
@@ -205,25 +207,25 @@ if __name__ == "__main__":
             for i in range(n_frames):
                 num_rows = n_pnts // args.Nlines
                 fig, axs = plt.subplots(num_rows, args.Nlines, figsize=(5*args.Nlines, 
-                                                                    5*num_rows))
-                plt.subplots_adjust(hspace=1.5)
-                plt.suptitle(f"Frame: {os.path.basename(fn_list[i])}")
+                                                                    3*num_rows))
+                plt.subplots_adjust(hspace=1.5, wspace=1.5)
                 for j, ax in enumerate(axs.flat):
+                    Xc_in_box = full_table.loc[i*n_pnts+j, 'Xc'] - full_table.loc[i*n_pnts+j, 'x'] + args.box_size
+                    Yc_in_box = full_table.loc[i*n_pnts+j, 'Yc'] - full_table.loc[i*n_pnts+j, 'y'] + args.box_size
                     ax.imshow(ROI_arr[i*n_pnts+j], origin='lower', 
                               vmin=args.cmap_range[0], vmax=args.cmap_range[1])
-                    ax.scatter(full_table.loc[i*n_pnts+j, 'Xc'], 
-                               full_table.loc[i*n_pnts+j, 'Yc'],
-                               color='red', s=10)
-                    ax.add_patch(Ellipse((full_table.loc[i*n_pnts+j, 'Xc'],
-                                          full_table.loc[i*n_pnts+j, 'Yc']),
-                                        full_table.loc[i*n_pnts+j, 'FWHMx'],
-                                        full_table.loc[i*n_pnts+j, 'FWHMy'],
-                                        edgecolor='red', facecolor='none'))
-                    ax.set_title(f"Frame {i+1}, Point {j+1}")
+                    ax.scatter(Xc_in_box, Yc_in_box, color='red', s=10)
+                    ax.add_patch(Ellipse((Xc_in_box, Yc_in_box), 
+                                         full_table.loc[i*n_pnts+j, 'FWHMx'],
+                                         full_table.loc[i*n_pnts+j, 'FWHMy'],
+                                         edgecolor='red', facecolor='none'))
+                    ax.set_title(f'Fit Centre: {full_table.loc[i*n_pnts+j, "Xc"]:.2f}, {full_table.loc[i*n_pnts+j, "Yc"]:.2f}')
+                    ax.axis('off')
+                plt.suptitle(f"Frame: {os.path.basename(fn_list[i])}")
                 plt.tight_layout()
                 pdf.savefig(fig)
                 plt.close()
-                
+    logger.info("Regions plotted.")        
         
     
     
