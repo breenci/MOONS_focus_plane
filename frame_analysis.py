@@ -71,6 +71,7 @@ def extract_ROI(datacube, pnts, cube_ids, box_size):
     frame_idxs = np.repeat(cube_ids, n_points)
     x = np.zeros(n_regions)
     y = np.zeros(n_regions)
+    pnt_id = np.zeros(n_regions)
     
     for i in range(n_points):
         x_discrete = int(pnts[i, 0])
@@ -80,8 +81,10 @@ def extract_ROI(datacube, pnts, cube_ids, box_size):
         regions[i::n_points] = pnt_ROIS
         x[i::n_points] = x_discrete
         y[i::n_points] = y_discrete
+        pnt_id[i::n_points] = i
     
-    region_table = pd.DataFrame({'frame_id': frame_idxs, 'x': x, 'y': y})
+    region_table = pd.DataFrame({'frame_id': frame_idxs, 'pnt_id': pnt_id, 
+                                 'x': x, 'y': y})
         
     return regions, region_table
 
