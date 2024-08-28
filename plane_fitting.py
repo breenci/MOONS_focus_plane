@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from numpy.polynomial.polynomial import Polynomial
 import argparse
+import logging
 
 
 def DAM_to_mm(DAM_pos, DAM_offsets, DAM_step_size):
@@ -159,8 +160,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Find the best focus plane of a set of images')
     
     parser.add_argument('input_file', type=str, help='The input file containing the DAM positions', default="full_table.csv")
-    
+    parser.add_argument('--metrics', type=str, nargs='+', help='The names of the metrics to use')
+    parser.add_argument('--weights', type=int, nargs='+', help='The weights of the metrics to use in the mixed score')
+    parser.add_argument('--log', type=str, help='The log level', default='INFO')
+    parser.add_argument('-s', '--save_folder', type=str, help='The folder to save the output files')
     args = parser.parse_args()
+    
+    numeric_level = getattr(logging, args.log.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % args.log)
+    # Set up logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=numeric_level, 
+                        filename=args.save_folder + "plane_fitting.log", 
+                        filemode='w')
+    logging.getLogger().addHandler(logging.StreamHandler())
     
     # Define the DAM offsets
     # Coordinate system is X, Y are in the plane of the detector and Z is along
@@ -177,6 +191,8 @@ if __name__ == "__main__":
     if option == 4:
         DAM_offsets = [[0, -263.5, 0] ,[-228.2, 131.7, 0], [228.2, 131.7, 0]]
     
+    logger.info(f"Using option 4 DAM offsets: {DAM_offsets}")
+    
     
     # TODO: Add to a config file
     # Convert pixel coordinates to mm
@@ -184,8 +200,14 @@ if __name__ == "__main__":
     DAM_step_size = 0.01 # 10 micron steps
     array_centre = (2048, 2048)
     
+    logger.info(f"Pixel size: {pixel_size} mm")
+    logger.info(f"DAM step size: {DAM_step_size} mm")
+    logger.info(f"Array centre: {array_centre}")
+    
     # load the data
+    logger.info(f"Loading data from {args.input_file}")
     line_data = pd.read_csv(args.input_file)
+    logger.info(f"Data loaded")
     
     # convert the dam positions coordinates to mm
     DAMX_x, DAMX_y, DAMX_z = DAM_to_mm(np.array(line_data.loc[:, 'DAM_X']), 
@@ -213,7 +235,8 @@ if __name__ == "__main__":
     line_data['Zc_mm'] = Zc_mm
     
     # ---- Metrics ----
-    score = get_score(line_data, ['FWHMx', 'FWHMy'], [1, 1])
+    logger.info(f"Calculating score using metrics: {args.metrics} and weights: {args.weights}")
+    score = get_score(line_data, args.metrics, args.weights)
     line_data['score'] = score
     
     # filter out points with bad FWHM values
@@ -229,6 +252,7 @@ if __name__ == "__main__":
     Z_before = np.zeros(len(pnts))
     Z_after = np.zeros(len(pnts))
     
+    optimal_score = 3.0
 
     fig, ax = plt.subplots(3, 3, figsize=(10, 10))
     flat_ax = ax.flatten()
@@ -246,7 +270,6 @@ if __name__ == "__main__":
         Yc_at_min[n] = fltrd_pnt_data['Yc_mm'].iloc[0]
         
         # find the Z value at a certain score before and after the min score
-        optimal_score = 3.0
         # check if this lower than min
         if optimal_score < min_score[n]:
             Z_before[n] = Zc_at_min[n]
