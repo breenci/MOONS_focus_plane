@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from numpy.polynomial.polynomial import Polynomial
+import argparse
 
 
 def DAM_to_mm(DAM_pos, DAM_offsets, DAM_step_size):
@@ -132,7 +133,13 @@ def get_score(df, metric_names, weights):
 
 if __name__ == "__main__":
     # ---- Constants, config and command line arguments ----
-    # 
+    # read in input arguments
+    parser = argparse.ArgumentParser(description='Find the best focus plane of a set of images')
+    
+    parser.add_argument('input_file', type=str, help='The input file containing the DAM positions', default="full_table.csv")
+    
+    args = parser.parse_args()
+    
     # Define the DAM offsets
     # Coordinate system is X, Y are in the plane of the detector and Z is along
     # the direction of travel of the motors
@@ -149,15 +156,14 @@ if __name__ == "__main__":
         DAM_offsets = [[0, -263.5, 0] ,[-228.2, 131.7, 0], [228.2, 131.7, 0]]
     
     
-    # TODO: Ad to a config file
+    # TODO: Add to a config file
     # Convert pixel coordinates to mm
     pixel_size = 0.015 #15 micron pixels
     DAM_step_size = 0.01 # 10 micron steps
     array_centre = (2048, 2048)
     
-    # TODO: This should be a cl argument
     # load the data
-    line_data = pd.read_csv("full_table.csv")
+    line_data = pd.read_csv(args.input_file)
     
     # convert the dam positions coordinates to mm
     DAMX_x, DAMX_y, DAMX_z = DAM_to_mm(np.array(line_data.loc[:, 'DAM_X']), 
