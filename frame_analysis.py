@@ -90,10 +90,6 @@ def extract_ROI(datacube, pnts, cube_ids, box_size):
 
 
 if __name__ == "__main__":
-    # Set up logging
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.INFO)
-    
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Find the best focus position")
     # add an argument for folder containing the data
@@ -107,8 +103,20 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--cmap_range", nargs=2, type=int, help='Min and max values for colormap')
     parser.add_argument("-e", "--ext", type=int, default=1, help='FITS extension to read')
     parser.add_argument("--Nlines", type=int, default=3, help='Number of lines to plot')
+    parser.add_argument("--save_folder", "-s", help="Folder to save the output files")
+    parser.add_argument("--log", help="Set the logging level", default="INFO")
     # parse the arguments
     args = parser.parse_args()
+    
+    numeric_level = getattr(logging, args.log.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % args.log)
+    # Set up logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=numeric_level, 
+                        filename=args.save_folder + "frame_analysis.log", 
+                        filemode='w')
+    logging.getLogger().addHandler(logging.StreamHandler())
     
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
@@ -148,9 +156,13 @@ if __name__ == "__main__":
     logger.info("Subtracting dark frame...")
     if args.dark is not None:
         with fits.open(args.dark) as hdul:
+            logger.info(f"Loading dark frame: {args.dark}")
             dark_data = hdul[args.ext].data
             dsub_cube = cube - dark_data
-    logger.info("Dark subtraction complete.")
+            logger.info("Dark subtraction complete.")
+    else:
+        logger.info("No dark frame provided. Skipping dark subtraction.")
+    
     
     # load the points file
     logger.info(f"Loading points file: {args.preload_selection}")
@@ -158,6 +170,7 @@ if __name__ == "__main__":
     
     # extract the regions around the points
     logger.info("Extracting regions around points...")
+    logger.info("Box size: {args.box_size}")
     ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, 
                                      extracted_data.loc[:,'frame_id'], args.box_size)
     full_table = pd.merge(extracted_data, ROI_table, on='frame_id')
@@ -197,8 +210,8 @@ if __name__ == "__main__":
     
     # save the table to a csv file
     logger.info("Saving table to csv file...")
-    full_table.to_csv("full_table.csv", index=False)
-    logger.info("Table saved.")
+    full_table.to_csv(args.save_folder + "full_table.csv", index=False)
+    logger.info(f"Table saved at {args.save_folder}")
     
     # plot the regions
     plot = True
@@ -206,7 +219,7 @@ if __name__ == "__main__":
     if plot:
         n_pnts = pnts.shape[0]
         n_frames  = dsub_cube.shape[0]
-        with PdfPages("regions.pdf") as pdf:
+        with PdfPages(args.save_folder + "line_plots.pdf") as pdf:
             for i in range(n_frames):
                 num_rows = n_pnts // args.Nlines
                 fig, axs = plt.subplots(num_rows, args.Nlines, figsize=(5*args.Nlines, 
