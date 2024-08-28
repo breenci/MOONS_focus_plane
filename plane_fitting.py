@@ -113,6 +113,27 @@ def sigma_clip_polyfit(x, y, order, sigma=3, max_iter=5, weights=None):
     return poly_fit, mask
 
 
+def ratio_filter(df, ratio_cols, min_val, max_val):
+    """Remove rows from a DataFrame where the ratio of two columns is outside a range"""
+    
+    # check there are two columns in the ratio_cols
+    if len(ratio_cols) != 2:
+        raise ValueError("ratio_cols must contain two column names")
+    
+    ratio = df[ratio_cols[0]] / df[ratio_cols[1]]
+    mask = (ratio > min_val) & (ratio < max_val)
+    
+    return df[mask], mask
+
+
+def max_filter(df, max_cols, max_val):
+    """Remove rows from a DataFrame where the value of a column is greater than a threshold"""
+    mask = np.ones(len(df), dtype=bool)
+    for col in max_cols:
+        mask = mask & (df.loc[:,col] < max_val)
+        
+    return df[mask], mask
+
 
 def get_score(df, metric_names, weights):
     
@@ -196,10 +217,8 @@ if __name__ == "__main__":
     
     # filter out points with bad FWHM values
     # TODO: Change this to functions
-    FWHM_ratio = line_data['FWHMx'] / line_data['FWHMy']
-    filtered_data = line_data[(FWHM_ratio > 0.6) & (FWHM_ratio < 1.4)]
-    filtered_data = filtered_data[filtered_data['FWHMx'] < 4.5]
-    filtered_data = filtered_data[filtered_data['FWHMy'] < 4.5]
+    rat_fltrd_data,_ = ratio_filter(line_data, ['FWHMx', 'FWHMy'], 0.5, 2)
+    fltrd_data,_ = max_filter(rat_fltrd_data, ['FWHMx', 'FWHMy'], 5)
     
     # TODO: Do this differently!
     # loop through each point and plot the FWHM
@@ -218,7 +237,7 @@ if __name__ == "__main__":
     flat_ax = ax.flatten()
     for pnt in range(pnt_min, pnt_max+1):
         pnt_data = line_data[line_data['pnt_id'] == pnt]
-        fltrd_pnt_data = filtered_data[filtered_data['pnt_id'] == pnt]
+        fltrd_pnt_data = fltrd_data[fltrd_data['pnt_id'] == pnt]
         
         poly_fit, mask = sigma_clip_polyfit(fltrd_pnt_data['Zc_mm'], 
                                             fltrd_pnt_data['score'], 2, sigma=3,
