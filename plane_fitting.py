@@ -150,6 +150,7 @@ def get_score(df, metric_names, weights):
     score = np.nansum(wmetric_arr, axis=1)
     
     return score
+
     
 
 if __name__ == "__main__":
@@ -216,26 +217,22 @@ if __name__ == "__main__":
     line_data['score'] = score
     
     # filter out points with bad FWHM values
-    # TODO: Change this to functions
     rat_fltrd_data,_ = ratio_filter(line_data, ['FWHMx', 'FWHMy'], 0.5, 2)
     fltrd_data,_ = max_filter(rat_fltrd_data, ['FWHMx', 'FWHMy'], 5)
     
-    # TODO: Do this differently!
-    # loop through each point and plot the FWHM
-    pnt_max = int(line_data['pnt_id'].max())
-    pnt_min = int(line_data['pnt_id'].min())
-    
     # initialise arrays to hold the min score and the Zc value at the min score
-    min_score = np.zeros(pnt_max - pnt_min + 1)
-    Zc_at_min_score = np.zeros(pnt_max - pnt_min + 1)
-    Xc_at_min_score = np.zeros(pnt_max - pnt_min + 1)
-    Yc_at_min_score = np.zeros(pnt_max - pnt_min + 1)
-    pnts = np.arange(pnt_min, pnt_max+1)
+    pnts = np.sort(fltrd_data['pnt_id'].unique())
+    min_score = np.zeros(len(pnts))
+    Zc_at_min = np.zeros(len(pnts))
+    Xc_at_min = np.zeros(len(pnts))
+    Yc_at_min = np.zeros(len(pnts))
+    Z_before = np.zeros(len(pnts))
+    Z_after = np.zeros(len(pnts))
     
-    # This can also be cleaner!
-    fig, ax = plt.subplots(3, 3)
+
+    fig, ax = plt.subplots(3, 3, figsize=(10, 10))
     flat_ax = ax.flatten()
-    for pnt in range(pnt_min, pnt_max+1):
+    for n, pnt in enumerate(pnts):
         pnt_data = line_data[line_data['pnt_id'] == pnt]
         fltrd_pnt_data = fltrd_data[fltrd_data['pnt_id'] == pnt]
         
@@ -243,53 +240,87 @@ if __name__ == "__main__":
                                             fltrd_pnt_data['score'], 2, sigma=3,
                                             max_iter=5)
         
-        minz_score = poly_fit.deriv().roots()
-        score_at_minz = poly_fit(minz_score)
+        Zc_at_min[n] = poly_fit.deriv().roots()[0]
+        min_score[n] = poly_fit(poly_fit.deriv().roots()[0])
+        Xc_at_min[n] = fltrd_pnt_data['Xc_mm'].iloc[0]
+        Yc_at_min[n] = fltrd_pnt_data['Yc_mm'].iloc[0]
         
-        min_score[pnt - pnt_min] = score_at_minz
-        Zc_at_min_score[pnt - pnt_min] = minz_score
+        # find the Z value at a certain score before and after the min score
+        optimal_score = 3.0
+        # check if this lower than min
+        if optimal_score < min_score[n]:
+            Z_before[n] = Zc_at_min[n]
+            Z_after[n] = Zc_at_min[n]
+        else:
+            optimal_Zc = (poly_fit - optimal_score).roots()
+            Z_before[n] = optimal_Zc[optimal_Zc < Zc_at_min[n]][-1]
+            Z_after[n] = optimal_Zc[optimal_Zc > Zc_at_min[n]][0]
         
-        print(f"Point {pnt}: min score at {minz_score} mm is {score_at_minz}")
-        Xc_at_min_score[pnt - pnt_min] = fltrd_pnt_data['Xc_mm'].iloc[np.argmin(fltrd_pnt_data['score'])]
-        Yc_at_min_score[pnt - pnt_min] = fltrd_pnt_data['Yc_mm'].iloc[np.argmin(fltrd_pnt_data['score'])]
-        
-        
+        # plotting
         sigma_cliped_data = fltrd_pnt_data[mask]
-        
-        flat_ax[pnt].plot(pnt_data['Zc_mm'], pnt_data['score'], 'bo',
-                       fillstyle='none')
-        flat_ax[pnt].plot(fltrd_pnt_data['Zc_mm'], fltrd_pnt_data['score'], 
-                          'bo')
-        flat_ax[pnt].plot(sigma_cliped_data['Zc_mm'], sigma_cliped_data['score'], 'go')
-        flat_ax[pnt].plot(pnt_data['Zc_mm'], poly_fit(pnt_data['Zc_mm']), 'r-')
+        flat_ax[n].plot(pnt_data['Zc_mm'], pnt_data['score'], 'bo',
+                        fillstyle='none', label='All points')
+        flat_ax[n].plot(sigma_cliped_data['Zc_mm'], sigma_cliped_data['score'], 
+                        'bo', label="Points used in fit")
+        flat_ax[n].plot(pnt_data['Zc_mm'], poly_fit(pnt_data['Zc_mm']), 'r-', 
+                        label='Fit')
+        flat_ax[n].axvline(Z_before[n], color='g', linestyle='--')
+        flat_ax[n].axvline(Z_after[n], color='g', linestyle='--')
+        flat_ax[n].set_title(f'Point {pnt}')
+        flat_ax[n].set_xlabel('Zc (mm)')
+        flat_ax[n].set_ylabel('Score')
+        fig.suptitle('Score')
+        fig.tight_layout(h_pad=2)
         
     
     pnt_df = pd.DataFrame({'pnt_id': pnts, 'min_score': min_score, 
-                           'Zc_at_min_score': Zc_at_min_score, 
-                           'Xc_at_min_score': Xc_at_min_score,
-                           'Yc_at_min_score': Yc_at_min_score})
+                           'Zc_at_min': Zc_at_min, 'Xc_at_min': Xc_at_min,
+                           'Yc_at_min': Yc_at_min, 'Z_before': Z_before,
+                           'Z_after': Z_after}).sort_values('pnt_id')
     
     
+    # TODO: function for this?
     # find the best fit plane to the min score points
-    A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min_score'],
-                                               pnt_df['Yc_at_min_score'],
-                                               pnt_df['Zc_at_min_score'])))
+    A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
+                                               pnt_df['Yc_at_min'],
+                                               pnt_df['Zc_at_min'])))
     
     DAMX_minz = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
     DAMY_minz = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
     DAMZ_minz = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
     
-    print('DAMX_minz:', DAMX_minz)
-    print('DAMY_minz:', DAMY_minz)
-    print('DAMZ_minz:', DAMZ_minz)
+    # find the best fit plane for the points before and after the min score
+    A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
+                                               pnt_df['Yc_at_min'],
+                                               pnt_df['Z_before'])))
+    
+    DAMX_before = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
+    DAMY_before = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
+    DAMZ_before = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
+    
+    A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
+                                                  pnt_df['Yc_at_min'],
+                                                  pnt_df['Z_after'])))
+    
+    DAMX_after = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
+    DAMY_after = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
+    DAMZ_after = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
+    
+    print("Best fit planes:")
+    print(f"Score: DAMX = {DAMX_minz:.2f}", f"DAMY = {DAMY_minz:.2f}", 
+          f"DAMZ = {DAMZ_minz:.2f}")
+    print(f"Score @ {optimal_score} before min: DAMX = {DAMX_before:.2f}", 
+          f"DAMY = {DAMY_before:.2f}", f"DAMZ = {DAMZ_before:.2f}")
+    print(f"Score @ {optimal_score} after min: DAMX = {DAMX_after:.2f}", 
+          f"DAMY = {DAMY_after:.2f}", f"DAMZ = {DAMZ_after:.2f}")
      
     # plot the dam positions
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
     ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAM1')
     ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAM2')
     ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAM3')
-    ax.scatter(pnt_df['Xc_at_min_score'], pnt_df['Yc_at_min_score'],
-               pnt_df['Zc_at_min_score'], label='min score points')
+    ax.scatter(pnt_df['Xc_at_min'], pnt_df['Yc_at_min'],
+               pnt_df['Zc_at_min'], label='min score points')
     plt.show()
     
     
