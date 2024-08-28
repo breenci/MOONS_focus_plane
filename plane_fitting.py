@@ -280,14 +280,34 @@ if __name__ == "__main__":
     
     
     # TODO: function for this?
+    x = np.linspace(-270, 270, 100)
+    y = np.linspace(-270, 131, 100)
+    X, Y = np.meshgrid(x, y)
+    
     # find the best fit plane to the min score points
     A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
                                                pnt_df['Yc_at_min'],
                                                pnt_df['Zc_at_min'])))
+    Z = (-A * X - B * Y - D) / C
     
     DAMX_minz = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
     DAMY_minz = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
     DAMZ_minz = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
+    
+    # plot the dam positions
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(10, 10))
+    ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAMX')
+    ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAMY')
+    ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAMZ')
+    ax.scatter(pnt_df['Xc_at_min'], pnt_df['Yc_at_min'],
+               pnt_df['Zc_at_min'], label='min score points')
+    ax.plot_surface(X, Y, Z, alpha=0.5)
+    ax.set_xlabel('X (mm)')
+    ax.set_ylabel('Y (mm)')
+    ax.set_zlabel('Z (mm)')
+    ax.set_title('Best fit plane to min score points')
+    ax.legend()
+    
     
     # find the best fit plane for the points before and after the min score
     A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
@@ -316,11 +336,11 @@ if __name__ == "__main__":
      
     # plot the dam positions
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
-    ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAM1')
-    ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAM2')
-    ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAM3')
-    ax.scatter(pnt_df['Xc_at_min'], pnt_df['Yc_at_min'],
-               pnt_df['Zc_at_min'], label='min score points')
+    ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAMX')
+    ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAMY')
+    ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAMZ')
+    ax.scatter(Xc_mm, Yc_mm, Zc_mm, label='Line points')
+    ax.legend()
     plt.show()
     
     
