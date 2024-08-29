@@ -108,6 +108,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_folder", "-s", help="Folder to save the output files")
     parser.add_argument("--log", help="Set the logging level", default="INFO")
     parser.add_argument("--config", help="Path to the configuration file", default="config/cameraConfig.yml")
+    parser.add_argument("--plot", help="Produce a plot if set", default=True)
     # parse the arguments
     args = parser.parse_args()
     
@@ -240,9 +241,9 @@ if __name__ == "__main__":
     logger.info(f"Table saved at {args.save_folder}")
     
     # plot the regions
-    plot = True
-    logger.info("Plotting regions...")
-    if plot:
+    
+    if args.plot:
+        logger.info("Plotting regions...")
         n_pnts = pnts.shape[0]
         n_frames  = dsub_cube.shape[0]
         with PdfPages(args.save_folder + "line_plots.pdf") as pdf:
