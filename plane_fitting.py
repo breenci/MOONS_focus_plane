@@ -4,7 +4,7 @@ import pandas as pd
 from numpy.polynomial.polynomial import Polynomial
 import argparse
 import logging
-
+import os
 
 def DAM_to_mm(DAM_pos, DAM_offsets, DAM_step_size):
     """Conver DAM step positions to 3D coordinates in mm
@@ -164,7 +164,12 @@ if __name__ == "__main__":
     parser.add_argument('--weights', type=int, nargs='+', help='The weights of the metrics to use in the mixed score')
     parser.add_argument('--log', type=str, help='The log level', default='INFO')
     parser.add_argument('-s', '--save_folder', type=str, help='The folder to save the output files')
+    parser.add_argument('-opt_score', type=float, help='The optimal score to use for the plane fitting', default=3.0)
     args = parser.parse_args()
+    
+    if args.save_folder is None:
+        # default to directory of input file
+        args.save_folder = os.path.dirname(args.input_file) + '/'
     
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
@@ -252,7 +257,7 @@ if __name__ == "__main__":
     Z_before = np.zeros(len(pnts))
     Z_after = np.zeros(len(pnts))
     
-    optimal_score = 3.0
+    optimal_score = args.opt_score
 
     fig, ax = plt.subplots(3, 3, figsize=(10, 10))
     flat_ax = ax.flatten()
