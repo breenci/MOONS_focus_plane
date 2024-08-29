@@ -11,6 +11,7 @@ from lmfit.models import Gaussian2dModel
 import argparse
 import os
 import yaml
+from focus_finder_gui import pointSelectGUI
 
 
 def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='DAM_X'):
@@ -103,12 +104,13 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dark", help="Dark frame to subtract from the data")
     # add an optional argument to specify a vmin and vmax for the images
     parser.add_argument("-v", "--cmap_range", nargs=2, type=int, help='Min and max values for colormap')
-    parser.add_argument("-e", "--ext", type=int, default=1, help='FITS extension to read')
+    parser.add_argument("-e", "--ext", type=int, help='FITS extension to read')
     parser.add_argument("--Nlines", type=int, default=3, help='Number of lines to plot')
     parser.add_argument("--save_folder", "-s", help="Folder to save the output files")
     parser.add_argument("--log", help="Set the logging level", default="INFO")
     parser.add_argument("--config", help="Path to the configuration file", default="config/cameraConfig.yml")
     parser.add_argument("--plot", help="Produce a plot if set", default=True)
+    parser.add_argument("--gui", help="Run the GUI for point selection", default=True)
     # parse the arguments
     args = parser.parse_args()
     
@@ -189,11 +191,24 @@ if __name__ == "__main__":
             logger.info("Dark subtraction complete.")
     else:
         logger.info("No dark frame provided. Skipping dark subtraction.")
+        
     
-    
-    # load the points file
-    logger.info(f"Loading points file: {args.preload_selection}")
-    pnts = np.loadtxt(args.preload_selection)
+    if args.gui:
+        # initialize the GUI
+        logger.info("Initializing GUI...")
+        gui = pointSelectGUI(dsub_cube, point_file=args.preload_selection, 
+                             DAM_positions=extracted_data['DAM_X'].tolist(), 
+                             box_size=args.box_size, vmin=args.cmap_range[0], 
+                             vmax=args.cmap_range[1])
+        gui.run()
+        pnts = gui.selection["Selected Points"]
+        logger.info("Loading points from GUI...")
+        # TODO: Always save the points to a file
+    else:
+        # load the points file
+        logger.info(f"Loading points file: {args.preload_selection}")
+        pnts = np.loadtxt(args.preload_selection)
+
     
     # extract the regions around the points
     logger.info("Extracting regions around points...")
