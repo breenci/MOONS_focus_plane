@@ -10,6 +10,7 @@ from matplotlib.patches import Ellipse
 from lmfit.models import Gaussian2dModel
 import argparse
 import os
+import yaml
 
 
 def extract_variables_and_export(filenames, pattern, column_names=None, sort_by='DAM_X'):
@@ -94,6 +95,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Find the best focus position")
     # add an argument for folder containing the data
     parser.add_argument("folder", help="Folder containing the data")
+    parser.add_argument("camera", type=str, help="Camera name")
     # folder = "data/raw/cool4B.01.15/*ARC*.fits"
     # add optional arguments for box size, preload selection, and dark
     parser.add_argument("-b", "--box_size", type=int, default=30, help="Size of the box around each point")
@@ -105,8 +107,19 @@ if __name__ == "__main__":
     parser.add_argument("--Nlines", type=int, default=3, help='Number of lines to plot')
     parser.add_argument("--save_folder", "-s", help="Folder to save the output files")
     parser.add_argument("--log", help="Set the logging level", default="INFO")
+    parser.add_argument("--config", help="Path to the configuration file", default="config/cameraConfig.yml")
     # parse the arguments
     args = parser.parse_args()
+    
+    # open the configuration file
+    with open(args.config, 'r') as con:
+        config = yaml.safe_load(con)
+        
+    # default save folder
+    if args.save_folder is None:
+        # create a folder to save the output files
+        os.makedirs("data/processed/" + args.camera +"/", exist_ok=True)
+        args.save_folder = "data/processed/" + args.camera + "/"
     
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
@@ -118,6 +131,15 @@ if __name__ == "__main__":
                         filemode='w')
     logging.getLogger().addHandler(logging.StreamHandler())
     
+    if args.ext is None:
+        args.ext = config[args.camera]['ext']
+    
+    # default save folder
+    if args.save_folder is None:
+        # create a folder to save the output files
+        os.makedirs("data/processed/" + args.camera +"/", exist_ok=True)
+        args.save_folder = "data/processed/" + args.camera + "/"
+        
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
     
@@ -170,7 +192,7 @@ if __name__ == "__main__":
     
     # extract the regions around the points
     logger.info("Extracting regions around points...")
-    logger.info("Box size: {args.box_size}")
+    logger.info(f"Box size: {args.box_size}")
     ROI_arr, ROI_table = extract_ROI(dsub_cube, pnts, 
                                      extracted_data.loc[:,'frame_id'], args.box_size)
     full_table = pd.merge(extracted_data, ROI_table, on='frame_id')
