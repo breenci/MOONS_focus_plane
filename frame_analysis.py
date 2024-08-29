@@ -241,7 +241,6 @@ if __name__ == "__main__":
     logger.info(f"Table saved at {args.save_folder}")
     
     # plot the regions
-    
     if args.plot:
         logger.info("Plotting regions...")
         n_pnts = pnts.shape[0]
