@@ -1,0 +1,7 @@
+INFO:__main__:Using option 4 DAM offsets: [[0, -263.5, 0], [-228.2, 131.7, 0], [228.2, 131.7, 0]]
+INFO:__main__:Pixel size: 0.015 mm
+INFO:__main__:DAM step size: 0.01 mm
+INFO:__main__:Array centre: (2048, 2048)
+INFO:__main__:Loading data from data/processed/cool4B.01.15/full_table.csv
+INFO:__main__:Data loaded
+INFO:__main__:Calculating score using metrics: ['FWHMx', 'FWHMy'] and weights: [1, 1]
