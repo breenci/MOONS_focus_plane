@@ -7,7 +7,7 @@ import re
 import logging
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Ellipse
-from lmfit.models import Gaussian2dModel
+from lmfit.models import GaussianModel, Gaussian2dModel
 import argparse
 import os
 import yaml
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("--log", help="Set the logging level", default="INFO")
     parser.add_argument("--config", help="Path to the configuration file", default="config/cameraConfig.yml")
     parser.add_argument("--plot", help="Produce a plot if set", default=True)
-    parser.add_argument("--gui", help="Run the GUI for point selection", default=True)
+    parser.add_argument("--gui", help="Run the GUI for point selection", default=True, type=bool)
     # parse the arguments
     args = parser.parse_args()
     
@@ -119,10 +119,14 @@ if __name__ == "__main__":
         config = yaml.safe_load(con)
         
     # default save folder
+    in_folder = os.path.dirname(args.folder)
+    test_id = os.path.basename(in_folder)
     if args.save_folder is None:
+        folder_name = test_id + "." + args.camera + "/"
+        folder_path = "data/processed/" + folder_name
         # create a folder to save the output files
-        os.makedirs("data/processed/" + args.camera +"/", exist_ok=True)
-        args.save_folder = "data/processed/" + args.camera + "/"
+        os.makedirs(folder_path, exist_ok=True)
+        args.save_folder = folder_path
     
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
@@ -140,7 +144,7 @@ if __name__ == "__main__":
         
     if args.preload_selection is None:
         args.preload_selection = config[args.camera]['pnts_path']
-    # TODO:add test id to save_folder
+
     # default save folder
     if args.save_folder is None:
         # create a folder to save the output files
@@ -224,25 +228,28 @@ if __name__ == "__main__":
     Yc = np.zeros(len(full_table))
     FWHMx = np.zeros(len(full_table))
     FWHMy = np.zeros(len(full_table))
+    FWHMx1D = np.zeros(len(full_table))
+    FWHMy1D = np.zeros(len(full_table))
     
     logger.info("Fitting 2D Gaussian to each region...")
     for i in range(len(full_table)):
         frame = ROI_arr[i]
         X, Y = np.meshgrid(np.arange(frame.shape[0]), np.arange(frame.shape[1]))
         # flatten X, Y and box to guess the parameters
-        model = Gaussian2dModel()
-        params = model.make_params(amplitude=3000, centerx=30, centery=30, 
+        model2D = Gaussian2dModel()
+        params = model2D.make_params(amplitude=3000, centerx=30, centery=30, 
                                    sigmax=3, sigmay=3)
         params['centerx'].set(min=0, max=60)
         params['centery'].set(min=0, max=60)
         params['fwhmx'].set(min=2, max=20)
         params['fwhmy'].set(min=2, max=20)
         
-        fit_result = model.fit(frame, params, x=X, y=Y)
+        fit_result = model2D.fit(frame, params, x=X, y=Y)
         Xc[i] = fit_result.params['centerx'].value + int(full_table.loc[i, 'x']) - args.box_size
         Yc[i] = fit_result.params['centery'].value + int(full_table.loc[i, 'y']) - args.box_size
         FWHMx[i] = fit_result.params['fwhmx'].value
         FWHMy[i] = fit_result.params['fwhmy'].value
+        
     logger.info("Fitting complete.")
     
     full_table['Xc'] = Xc
