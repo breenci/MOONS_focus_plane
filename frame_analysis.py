@@ -131,8 +131,12 @@ if __name__ == "__main__":
                         filemode='w')
     logging.getLogger().addHandler(logging.StreamHandler())
     
+    # load info from the configuration file if not provided
     if args.ext is None:
         args.ext = config[args.camera]['ext']
+        
+    if args.preload_selection is None:
+        args.preload_selection = config[args.camera]['pnts_path']
     
     # default save folder
     if args.save_folder is None:
