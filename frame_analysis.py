@@ -140,7 +140,7 @@ if __name__ == "__main__":
         
     if args.preload_selection is None:
         args.preload_selection = config[args.camera]['pnts_path']
-    
+    # TODO:add test id to save_folder
     # default save folder
     if args.save_folder is None:
         # create a folder to save the output files

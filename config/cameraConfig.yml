@@ -2,4 +2,8 @@ YJ2:
   ext: 2
   pnts_path: config/points20240527_143953.txt
   box_size: 30
+  pixel_size: 0.015
+  DAM_step_size: 0.01
+  x_pix: 4096
+  ypix: 4096
 
