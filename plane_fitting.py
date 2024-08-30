@@ -5,6 +5,7 @@ from numpy.polynomial.polynomial import Polynomial
 import argparse
 import logging
 import os
+import yaml
 
 def DAM_to_mm(DAM_pos, DAM_offsets, DAM_step_size):
     """Conver DAM step positions to 3D coordinates in mm
@@ -161,6 +162,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Find the best focus plane of a set of images')
     
     parser.add_argument('input_file', type=str, help='The input file containing the DAM positions', default="full_table.csv")
+    parser.add_argument('camera', type=str, help='Camera type for config file')
     parser.add_argument('--metrics', type=str, nargs='+', help='The names of the metrics to use')
     parser.add_argument('--weights', type=int, nargs='+', help='The weights of the metrics to use in the mixed score')
     parser.add_argument('--log', type=str, help='The log level', default='INFO')
@@ -168,8 +170,12 @@ if __name__ == "__main__":
     parser.add_argument('-opt_score', type=float, help='The optimal score to use for the plane fitting', default=3.0)
     parser.add_argument('--filt_bounds', type=float, nargs=2, help='The bounds to use for the ratio filter', default=[2.5, 5])
     parser.add_argument('--max_ratio', type=float, help='The maximum ratio to use for the ratio filter', default=2)
-    parser.add_argument('--options', type=int, help='The option to use for the DAM offsets', default=4)
+    parser.add_argument('--option', type=int, help='The option to use for the DAM offsets', default=4)
     args = parser.parse_args()
+    
+    # open the configuration file
+    with open("config/cameraConfig.yml", 'r') as con:
+        config = yaml.safe_load(con)
     
     if args.save_folder is None:
         # default to directory of input file
@@ -189,8 +195,7 @@ if __name__ == "__main__":
     # Coordinate system is X, Y are in the plane of the detector and Z is along
     # the direction of travel of the motors
     # options for DAM offsets are:
-    # TODO: When this is known add to the config file
-    option = 4
+    option = args.option
     if option == 1:
         DAM_offsets = [[0, 263.5, 0] ,[228.2, -131.7, 0], [-228.2, -131.7, 0]]
     if option == 2:
@@ -202,11 +207,12 @@ if __name__ == "__main__":
     
     logger.info(f"Using option {option} DAM offsets: {DAM_offsets}")
     
-    # TODO: Add to a config file
     # Convert pixel coordinates to mm
-    pixel_size = 0.015 #15 micron pixels
-    DAM_step_size = 0.01 # 10 micron steps
-    array_centre = (2048, 2048)
+    pixel_size = config[args.camera]['pixel_size']
+    DAM_step_size = config[args.camera]['DAM_step_size']
+    xpix = config[args.camera]['xpix']
+    ypix = config[args.camera]['ypix']
+    array_centre = (xpix/2, ypix/2)
     
     logger.info(f"Pixel size: {pixel_size} mm")
     logger.info(f"DAM step size: {DAM_step_size} mm")
@@ -248,8 +254,8 @@ if __name__ == "__main__":
     line_data['score'] = score
     
     # filter out points with bad FWHM values
-    rat_fltrd_data,_ = ratio_filter(line_data, ['FWHMx', 'FWHMy'], 0.5, 2)
-    fltrd_data,_ = maxmin_filter(rat_fltrd_data, ['FWHMx', 'FWHMy'], 5, 2.5)
+    rat_fltrd_data,_ = ratio_filter(line_data, ['FWHMx', 'FWHMy'], 1/args.max_ratio, args.max_ratio)
+    fltrd_data,_ = maxmin_filter(rat_fltrd_data, ['FWHMx', 'FWHMy'], args.filt_bounds[1], args.filt_bounds[0])
     
     # initialise arrays to hold the min score and the Zc value at the min score
     pnts = np.sort(fltrd_data['pnt_id'].unique())
@@ -365,12 +371,23 @@ if __name__ == "__main__":
     DAMZ_after = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
     
     print("Best fit planes:")
-    print(f"Score: DAMX = {DAMX_minz:.2f}", f"DAMY = {DAMY_minz:.2f}", 
+    print(f"Score @ min (fit): DAMX = {DAMX_minz:.2f}", f"DAMY = {DAMY_minz:.2f}", 
           f"DAMZ = {DAMZ_minz:.2f}")
     print(f"Score @ {optimal_score} before min: DAMX = {DAMX_before:.2f}", 
           f"DAMY = {DAMY_before:.2f}", f"DAMZ = {DAMZ_before:.2f}")
     print(f"Score @ {optimal_score} after min: DAMX = {DAMX_after:.2f}", 
           f"DAMY = {DAMY_after:.2f}", f"DAMZ = {DAMZ_after:.2f}")
+    
+    A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
+                                               pnt_df['Yc_at_min'],
+                                               pnt_df['Z_data'])))
+    
+    DAMX_data = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
+    DAMY_data = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
+    DAMZ_data = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
+    
+    print(f"Score @ min (data): DAMX = {DAMX_data:.2f}", f"DAMY = {DAMY_data:.2f}",
+            f"DAMZ = {DAMZ_data:.2f}")
      
     # plot the dam positions
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
