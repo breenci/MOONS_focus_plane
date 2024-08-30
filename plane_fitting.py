@@ -196,8 +196,7 @@ if __name__ == "__main__":
     if option == 4:
         DAM_offsets = [[0, -263.5, 0] ,[-228.2, 131.7, 0], [228.2, 131.7, 0]]
     
-    logger.info(f"Using option 4 DAM offsets: {DAM_offsets}")
-    
+    logger.info(f"Using option {option} DAM offsets: {DAM_offsets}")
     
     # TODO: Add to a config file
     # Convert pixel coordinates to mm
@@ -370,6 +369,3 @@ if __name__ == "__main__":
     ax.scatter(Xc_mm, Yc_mm, Zc_mm, label='Line points')
     ax.legend()
     plt.show()
-    
-    
-    

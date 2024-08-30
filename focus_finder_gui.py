@@ -14,7 +14,7 @@ class pointSelectGUI():
     
     
     def __init__(self, data_cube, point_file=None, DAM_positions=None, box_size=30,
-                 vmin=0, vmax=100):
+                 vmin=0, vmax=100, output_dir="."):
         # initialize variables
         self.data_cube = data_cube
         self.point_file = point_file
@@ -23,7 +23,7 @@ class pointSelectGUI():
         self.box_size = box_size
         self.vmin = vmin
         self.vmax = vmax
-        
+        self.output_dir = output_dir
                 
     def run(self):
         # Specify current array
@@ -100,12 +100,16 @@ class pointSelectGUI():
         """Close the figure and do final update to postion list"""
         plt.close()
         self.selection = self.klicker.get_positions()
+        dirname = self.output_dir
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_fn = os.path.join(dirname, 'points' + timestamp + '.txt')
+        np.savetxt(save_fn, self.selection["Selected Points"])
         
         
     def _save_button_callback(self, event):
         """Save the selected points to a file"""
         pos = self.klicker.get_positions()
-        dirname = "." # default to current directory
+        dirname = self.output_dir
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         save_fn = os.path.join(dirname, 'points' + timestamp + '.txt')
         np.savetxt(save_fn, pos["Selected Points"])

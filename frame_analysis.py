@@ -110,6 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("--log", help="Set the logging level", default="INFO")
     parser.add_argument("--config", help="Path to the configuration file", default="config/cameraConfig.yml")
     parser.add_argument("--plot", help="Produce a plot if set", default=True)
+    # TODO: This doesn't work!
     parser.add_argument("--gui", help="Run the GUI for point selection", default=True, type=bool)
     # parse the arguments
     args = parser.parse_args()
@@ -128,29 +129,31 @@ if __name__ == "__main__":
         os.makedirs(folder_path, exist_ok=True)
         args.save_folder = folder_path
     
+    # Logging set up
     numeric_level = getattr(logging, args.log.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args.log)
-    # Set up logging
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=numeric_level, 
                         filename=args.save_folder + "frame_analysis.log", 
                         filemode='w')
+    # also log to the console
     logging.getLogger().addHandler(logging.StreamHandler())
     
     # load info from the configuration file if not provided
     if args.ext is None:
         args.ext = config[args.camera]['ext']
-        
+    
+    # TODO: Flow for first time use?
     if args.preload_selection is None:
-        args.preload_selection = config[args.camera]['pnts_path']
-
-    # default save folder
-    if args.save_folder is None:
-        # create a folder to save the output files
-        os.makedirs("data/processed/" + args.camera +"/", exist_ok=True)
-        args.save_folder = "data/processed/" + args.camera + "/"
-        
+        # check if there is a default selection in the config file
+        if 'pnts_path' not in config[args.camera]:
+            logger.info("No default selection provided")
+            args.preload_selection = None
+        else:
+            args.preload_selection = config[args.camera]['pnts_path']
+    
+    # TODO: Slit position?
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
     
@@ -175,7 +178,8 @@ if __name__ == "__main__":
     fn_list = extracted_data['filename'].tolist()
     
     # load each file and append to data cube
-    xpix, ypix = 4096, 4096
+    xpix = config[args.camera]['xpix']
+    ypix = config[args.camera]['ypix']
     
     # intialize an empty cube
     cube = np.zeros((len(fn_list), xpix, ypix))
@@ -197,21 +201,17 @@ if __name__ == "__main__":
         logger.info("No dark frame provided. Skipping dark subtraction.")
         
     
-    if args.gui:
-        # initialize the GUI
-        logger.info("Initializing GUI...")
-        gui = pointSelectGUI(dsub_cube, point_file=args.preload_selection, 
-                             DAM_positions=extracted_data['DAM_X'].tolist(), 
-                             box_size=args.box_size, vmin=args.cmap_range[0], 
-                             vmax=args.cmap_range[1])
-        gui.run()
-        pnts = gui.selection["Selected Points"]
-        logger.info("Loading points from GUI...")
-        # TODO: Always save the points to a file
-    else:
-        # load the points file
-        logger.info(f"Loading points file: {args.preload_selection}")
-        pnts = np.loadtxt(args.preload_selection)
+
+    # initialize the GUI
+    logger.info("Initializing GUI...")
+    gui = pointSelectGUI(dsub_cube, point_file=args.preload_selection, 
+                            DAM_positions=extracted_data['DAM_X'].tolist(), 
+                            box_size=args.box_size, vmin=args.cmap_range[0], 
+                            vmax=args.cmap_range[1], output_dir=args.save_folder)
+    gui.run()
+    pnts = gui.selection["Selected Points"]
+    logger.info("Loading points from GUI...")
+    # TODO: Always save the points to a file
 
     
     # extract the regions around the points
@@ -224,6 +224,7 @@ if __name__ == "__main__":
     
     # loop through each ROI and fit a 2D Gaussian
     # store the fit parameters in a DataFrame
+    # TODO: 1D guassian fit?
     Xc = np.zeros(len(full_table))
     Yc = np.zeros(len(full_table))
     FWHMx = np.zeros(len(full_table))
@@ -263,6 +264,7 @@ if __name__ == "__main__":
     logger.info(f"Table saved at {args.save_folder}")
     
     # plot the regions
+    # TODO: Plotting function
     if args.plot:
         logger.info("Plotting regions...")
         n_pnts = pnts.shape[0]
