@@ -127,11 +127,12 @@ def ratio_filter(df, ratio_cols, min_val, max_val):
     return df[mask], mask
 
 
-def max_filter(df, max_cols, max_val):
+def maxmin_filter(df, max_cols, max_val, min_val):
     """Remove rows from a DataFrame where the value of a column is greater than a threshold"""
     mask = np.ones(len(df), dtype=bool)
     for col in max_cols:
         mask = mask & (df.loc[:,col] < max_val)
+        mask = mask & (df.loc[:,col] > min_val)
         
     return df[mask], mask
 
@@ -165,6 +166,9 @@ if __name__ == "__main__":
     parser.add_argument('--log', type=str, help='The log level', default='INFO')
     parser.add_argument('-s', '--save_folder', type=str, help='The folder to save the output files')
     parser.add_argument('-opt_score', type=float, help='The optimal score to use for the plane fitting', default=3.0)
+    parser.add_argument('--filt_bounds', type=float, nargs=2, help='The bounds to use for the ratio filter', default=[2.5, 5])
+    parser.add_argument('--max_ratio', type=float, help='The maximum ratio to use for the ratio filter', default=2)
+    parser.add_argument('--options', type=int, help='The option to use for the DAM offsets', default=4)
     args = parser.parse_args()
     
     if args.save_folder is None:
@@ -245,7 +249,7 @@ if __name__ == "__main__":
     
     # filter out points with bad FWHM values
     rat_fltrd_data,_ = ratio_filter(line_data, ['FWHMx', 'FWHMy'], 0.5, 2)
-    fltrd_data,_ = max_filter(rat_fltrd_data, ['FWHMx', 'FWHMy'], 5)
+    fltrd_data,_ = maxmin_filter(rat_fltrd_data, ['FWHMx', 'FWHMy'], 5, 2.5)
     
     # initialise arrays to hold the min score and the Zc value at the min score
     pnts = np.sort(fltrd_data['pnt_id'].unique())
@@ -255,6 +259,7 @@ if __name__ == "__main__":
     Yc_at_min = np.zeros(len(pnts))
     Z_before = np.zeros(len(pnts))
     Z_after = np.zeros(len(pnts))
+    Zc_data_min = np.zeros(len(pnts))
     
     optimal_score = args.opt_score
 
@@ -285,17 +290,24 @@ if __name__ == "__main__":
         
         # plotting
         sigma_cliped_data = fltrd_pnt_data[mask]
+        # find the min score point in the sigma clipped data
+        data_min = sigma_cliped_data['score'].idxmin()
+        Zc_data_min[n] = sigma_cliped_data['Zc_mm'].loc[data_min]
+        score_data_min = sigma_cliped_data['score'].loc[data_min]
         flat_ax[n].plot(pnt_data['Zc_mm'], pnt_data['score'], 'bo',
                         fillstyle='none', label='All points')
         flat_ax[n].plot(sigma_cliped_data['Zc_mm'], sigma_cliped_data['score'], 
                         'bo', label="Points used in fit")
         flat_ax[n].plot(pnt_data['Zc_mm'], poly_fit(pnt_data['Zc_mm']), 'r-', 
                         label='Fit')
+        flat_ax[n].plot(Zc_data_min[n], score_data_min, 'go', label='Min score from Data')
+        flat_ax[n].plot(Zc_at_min[n], min_score[n], 'r*', label='Min score from Fit')
         flat_ax[n].axvline(Z_before[n], color='g', linestyle='--')
         flat_ax[n].axvline(Z_after[n], color='g', linestyle='--')
         flat_ax[n].set_title(f'Point {pnt}')
         flat_ax[n].set_xlabel('Zc (mm)')
         flat_ax[n].set_ylabel('Score')
+        flat_ax[n].set_ylim(0, 10)
         fig.suptitle('Score')
         fig.tight_layout(h_pad=2)
         
@@ -303,10 +315,9 @@ if __name__ == "__main__":
     pnt_df = pd.DataFrame({'pnt_id': pnts, 'min_score': min_score, 
                            'Zc_at_min': Zc_at_min, 'Xc_at_min': Xc_at_min,
                            'Yc_at_min': Yc_at_min, 'Z_before': Z_before,
-                           'Z_after': Z_after}).sort_values('pnt_id')
+                           'Z_after': Z_after, 'Z_data': Zc_data_min}).sort_values('pnt_id')
     
     
-    # TODO: function for this?
     x = np.linspace(-270, 270, 100)
     y = np.linspace(-270, 131, 100)
     X, Y = np.meshgrid(x, y)

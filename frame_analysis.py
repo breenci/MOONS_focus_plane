@@ -39,6 +39,8 @@ def extract_variables_and_export(filenames, pattern, column_names=None, sort_by=
                     variables.append(int(capture_group[1:]))
                 elif capture_group[0] == 'n':
                     variables.append(-int(capture_group[2:]))
+                elif capture_group[0] == 'm':
+                    variables.append(-int(capture_group[2:]))
                 else:
                     variables.append(capture_group)
                     
@@ -153,6 +155,7 @@ if __name__ == "__main__":
     # TODO: Slit position?
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
+    # pattern = r'\.X(\w{1}\d{3})\.Y(\w{1}\d{3})\.Z(\w{1}\d{3})'
     
     # Get a list of arc fits files in the folder 
     filenames = glob.glob(args.folder)
@@ -218,7 +221,6 @@ if __name__ == "__main__":
     
     # loop through each ROI and fit a 2D Gaussian
     # store the fit parameters in a DataFrame
-    # TODO: 1D guassian fit?
     Xc = np.zeros(len(full_table))
     Yc = np.zeros(len(full_table))
     FWHMx = np.zeros(len(full_table))
@@ -226,24 +228,49 @@ if __name__ == "__main__":
     FWHMx1D = np.zeros(len(full_table))
     FWHMy1D = np.zeros(len(full_table))
     
+    model2D = Gaussian2dModel()
+    model1D = GaussianModel()
+    
     logger.info("Fitting 2D Gaussian to each region...")
+    # TODO: Clean up the fitting code
+    box1D_size = config[args.camera]['box1D_size']
     for i in range(len(full_table)):
         frame = ROI_arr[i]
         X, Y = np.meshgrid(np.arange(frame.shape[0]), np.arange(frame.shape[1]))
         # flatten X, Y and box to guess the parameters
-        model2D = Gaussian2dModel()
-        params = model2D.make_params(amplitude=3000, centerx=30, centery=30, 
-                                   sigmax=3, sigmay=3)
-        params['centerx'].set(min=0, max=60)
-        params['centery'].set(min=0, max=60)
-        params['fwhmx'].set(min=2, max=20)
-        params['fwhmy'].set(min=2, max=20)
         
-        fit_result = model2D.fit(frame, params, x=X, y=Y)
-        Xc[i] = fit_result.params['centerx'].value + int(full_table.loc[i, 'x']) - args.box_size
-        Yc[i] = fit_result.params['centery'].value + int(full_table.loc[i, 'y']) - args.box_size
-        FWHMx[i] = fit_result.params['fwhmx'].value
-        FWHMy[i] = fit_result.params['fwhmy'].value
+        params2D = model2D.make_params(amplitude=3000, centerx=30, centery=30, 
+                                   sigmax=3, sigmay=3)
+        params2D['centerx'].set(min=box1D_size, max=args.box_size*2 - box1D_size)
+        params2D['centery'].set(min=box1D_size, max=args.box_size*2 - box1D_size)
+        params2D['fwhmx'].set(min=2, max=20)
+        params2D['fwhmy'].set(min=2, max=20)
+        
+        fit_result2D = model2D.fit(frame, params2D, x=X, y=Y)
+        Xc[i] = fit_result2D.params['centerx'].value + int(full_table.loc[i, 'x']) - args.box_size
+        Yc[i] = fit_result2D.params['centery'].value + int(full_table.loc[i, 'y']) - args.box_size
+        FWHMx[i] = fit_result2D.params['fwhmx'].value
+        FWHMy[i] = fit_result2D.params['fwhmy'].value
+        
+        # find a box around the fit centre
+        x_min = int(fit_result2D.params['centerx'].value) - box1D_size//2
+        x_max = int(fit_result2D.params['centerx'].value) + box1D_size//2
+        y_min = int(fit_result2D.params['centery'].value) - box1D_size//2
+        y_max = int(fit_result2D.params['centery'].value) + box1D_size//2
+        
+        # collapse the box in the x and y directions
+        x_profile = np.sum(frame[y_min:y_max, x_min:x_max], axis=0)    
+        y_profile = np.sum(frame[y_min:y_max, x_min:x_max], axis=1)
+        
+        # fit a 1D Gaussian to the collapsed profiles
+        params1D = model1D.guess(x_profile, x=np.arange(box1D_size))
+        
+        fit_result1D_x = model1D.fit(x_profile, params1D, x=np.arange(box1D_size))
+        fit_result1D_y = model1D.fit(y_profile, params1D, x=np.arange(box1D_size))
+        
+        FWHMx1D[i] = fit_result1D_x.params['fwhm'].value
+        FWHMy1D[i] = fit_result1D_y.params['fwhm'].value
+        
         
     logger.info("Fitting complete.")
     
@@ -251,6 +278,8 @@ if __name__ == "__main__":
     full_table['Yc'] = Yc
     full_table['FWHMx'] = FWHMx
     full_table['FWHMy'] = FWHMy
+    full_table['FWHMx1D'] = FWHMx1D
+    full_table['FWHMy1D'] = FWHMy1D
     
     # save the table to a csv file
     logger.info("Saving table to csv file...")
