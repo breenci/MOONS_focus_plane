@@ -168,7 +168,7 @@ if __name__ == "__main__":
     parser.add_argument('--log', type=str, help='The log level', default='INFO')
     parser.add_argument('-s', '--save_folder', type=str, help='The folder to save the output files')
     parser.add_argument('-opt_score', type=float, help='The optimal score to use for the plane fitting', default=3.0)
-    parser.add_argument('--filt_bounds', type=float, nargs=2, help='The bounds to use for the ratio filter', default=[2.5, 5])
+    parser.add_argument('--filt_bounds', type=float, nargs=2, help='The bounds to use for the ratio filter', default=[2.3, 5])
     parser.add_argument('--max_ratio', type=float, help='The maximum ratio to use for the ratio filter', default=2)
     parser.add_argument('--option', type=int, help='The option to use for the DAM offsets', default=4)
     args = parser.parse_args()
@@ -275,7 +275,7 @@ if __name__ == "__main__":
         fltrd_pnt_data = fltrd_data[fltrd_data['pnt_id'] == pnt]
         
         poly_fit, mask = sigma_clip_polyfit(fltrd_pnt_data['Zc_mm'], 
-                                            fltrd_pnt_data['score'], 2, sigma=3,
+                                            fltrd_pnt_data['score'], 2, sigma=10,
                                             max_iter=5)
         
         Zc_at_min[n] = poly_fit.deriv().roots()[0]
