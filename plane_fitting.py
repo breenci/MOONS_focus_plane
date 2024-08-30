@@ -187,8 +187,7 @@ if __name__ == "__main__":
     # Set up logging
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=numeric_level, 
-                        filename=args.save_folder + "plane_fitting.log", 
-                        filemode='w')
+                        filename=args.save_folder + "plane_fitting.log")
     logging.getLogger().addHandler(logging.StreamHandler())
     
     # Define the DAM offsets

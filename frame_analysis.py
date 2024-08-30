@@ -96,15 +96,11 @@ def extract_ROI(datacube, pnts, cube_ids, box_size):
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Find the best focus position")
-    # add an argument for folder containing the data
     parser.add_argument("folder", help="Folder containing the data")
-    parser.add_argument("camera", type=str, help="Camera name")
-    # folder = "data/raw/cool4B.01.15/*ARC*.fits"
-    # add optional arguments for box size, preload selection, and dark
+    parser.add_argument("camera", type=str, help="Camera name for config")
     parser.add_argument("-b", "--box_size", type=int, default=30, help="Size of the box around each point")
     parser.add_argument("-p", "--preload_selection", help="File containing preloaded selection")
     parser.add_argument("-d", "--dark", help="Dark frame to subtract from the data")
-    # add an optional argument to specify a vmin and vmax for the images
     parser.add_argument("-v", "--cmap_range", nargs=2, type=int, help='Min and max values for colormap')
     parser.add_argument("-e", "--ext", type=int, help='FITS extension to read')
     parser.add_argument("--Nlines", type=int, default=3, help='Number of lines to plot')
@@ -241,9 +237,11 @@ if __name__ == "__main__":
         frame = ROI_arr[i]
         X, Y = np.meshgrid(np.arange(frame.shape[0]), np.arange(frame.shape[1]))
         # flatten X, Y and box to guess the parameters
+        flatX = X.flatten()
+        flatY = Y.flatten()
+        flatbox = frame.flatten()
         
-        params2D = model2D.make_params(amplitude=3000, centerx=30, centery=30, 
-                                   sigmax=3, sigmay=3)
+        params2D = model2D.guess(flatbox, x=flatX, y=flatY)
         params2D['centerx'].set(min=box1D_size, max=args.box_size*2 - box1D_size)
         params2D['centery'].set(min=box1D_size, max=args.box_size*2 - box1D_size)
         params2D['fwhmx'].set(min=2, max=20)
