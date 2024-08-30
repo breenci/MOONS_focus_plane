@@ -110,8 +110,6 @@ if __name__ == "__main__":
     parser.add_argument("--log", help="Set the logging level", default="INFO")
     parser.add_argument("--config", help="Path to the configuration file", default="config/cameraConfig.yml")
     parser.add_argument("--plot", help="Produce a plot if set", default=True)
-    # TODO: This doesn't work!
-    parser.add_argument("--gui", help="Run the GUI for point selection", default=True, type=bool)
     # parse the arguments
     args = parser.parse_args()
     
@@ -144,7 +142,6 @@ if __name__ == "__main__":
     if args.ext is None:
         args.ext = config[args.camera]['ext']
     
-    # TODO: Flow for first time use?
     if args.preload_selection is None:
         # check if there is a default selection in the config file
         if 'pnts_path' not in config[args.camera]:
@@ -201,7 +198,6 @@ if __name__ == "__main__":
         logger.info("No dark frame provided. Skipping dark subtraction.")
         
     
-
     # initialize the GUI
     logger.info("Initializing GUI...")
     gui = pointSelectGUI(dsub_cube, point_file=args.preload_selection, 
@@ -211,9 +207,7 @@ if __name__ == "__main__":
     gui.run()
     pnts = gui.selection["Selected Points"]
     logger.info("Loading points from GUI...")
-    # TODO: Always save the points to a file
 
-    
     # extract the regions around the points
     logger.info("Extracting regions around points...")
     logger.info(f"Box size: {args.box_size}")
