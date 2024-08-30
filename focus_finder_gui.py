@@ -100,10 +100,6 @@ class pointSelectGUI():
         """Close the figure and do final update to postion list"""
         plt.close()
         self.selection = self.klicker.get_positions()
-        dirname = self.output_dir
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_fn = os.path.join(dirname, 'points' + timestamp + '.txt')
-        np.savetxt(save_fn, self.selection["Selected Points"])
         
         
     def _save_button_callback(self, event):

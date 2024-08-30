@@ -139,6 +139,8 @@ if __name__ == "__main__":
                         filemode='w')
     # also log to the console
     logging.getLogger().addHandler(logging.StreamHandler())
+    # Note the time in the log file
+    logger.info("Frame analysis started at: " + str(pd.Timestamp.now()))
     
     # load info from the configuration file if not provided
     if args.ext is None:
@@ -210,6 +212,7 @@ if __name__ == "__main__":
     gui.run()
     pnts = gui.selection["Selected Points"]
     logger.info("Loading points from GUI...")
+    logger.info(gui.selection)
 
     # extract the regions around the points
     logger.info("Extracting regions around points...")
