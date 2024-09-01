@@ -161,16 +161,26 @@ if __name__ == "__main__":
     # read in input arguments
     parser = argparse.ArgumentParser(description='Find the best focus plane of a set of images')
     
-    parser.add_argument('input_file', type=str, help='The input file containing the DAM positions', default="full_table.csv")
-    parser.add_argument('camera', type=str, help='Camera type for config file')
-    parser.add_argument('--metrics', type=str, nargs='+', help='The names of the metrics to use')
-    parser.add_argument('--weights', type=int, nargs='+', help='The weights of the metrics to use in the mixed score')
+    parser.add_argument('input_file', type=str, 
+                        help='The input file containing the DAM positions and metrics', 
+                        default="full_table.csv")
+    parser.add_argument('camera', type=str, 
+                        help='Camera type for config file e.g. HH1')
+    parser.add_argument('--metrics', type=str, nargs='+', 
+                        help='The names of the metrics to use')
+    parser.add_argument('--weights', type=int, nargs='+', 
+                        help='The weights of the metrics to use in the score')
     parser.add_argument('--log', type=str, help='The log level', default='INFO')
-    parser.add_argument('-s', '--save_folder', type=str, help='The folder to save the output files')
-    parser.add_argument('-opt_score', type=float, help='The optimal score to use for the plane fitting', default=3.0)
-    parser.add_argument('--filt_bounds', type=float, nargs=2, help='The bounds to use for the ratio filter', default=[2.3, 5])
-    parser.add_argument('--max_ratio', type=float, help='The maximum ratio to use for the ratio filter', default=2)
-    parser.add_argument('--option', type=int, help='The option to use for the DAM offsets', default=4)
+    parser.add_argument('-s', '--save_folder', type=str, 
+                        help='The folder to save the output files. Default is the input file directory')
+    parser.add_argument('-opt_score', type=float, 
+                        help='The optimal score to use for the plane fitting', default=3.0)
+    parser.add_argument('--filt_bounds', type=float, nargs=2, 
+                        help='The bounds to use for the min max filter', default=[2.3, 5])
+    parser.add_argument('--max_ratio', type=float, 
+                        help='The maximum ratio to use for the ratio filter', default=2)
+    parser.add_argument('--option', type=int, 
+                        help='The option to use for the DAM offsets', default=4)
     args = parser.parse_args()
     
     # open the configuration file
@@ -312,7 +322,8 @@ if __name__ == "__main__":
         flat_ax[n].set_title(f'Point {pnt}')
         flat_ax[n].set_xlabel('Zc (mm)')
         flat_ax[n].set_ylabel('Score')
-        flat_ax[n].set_ylim(0, 10)
+        flat_ax[n].set_ylim(0, args.filt_bounds[1]+10)
+        flat_ax[n].set_xlim(Zc_mm.min(), Zc_mm.max())
         fig.suptitle('Score')
         fig.tight_layout(h_pad=2)
         
