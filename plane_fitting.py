@@ -359,7 +359,7 @@ if __name__ == "__main__":
     ax.set_xlabel('X (mm)')
     ax.set_ylabel('Y (mm)')
     ax.set_zlabel('Z (mm)')
-    ax.set_title('Best fit plane to min score points')
+    ax.set_title('Best fit plane to Min Score Points (From Fit)')
     ax.legend()
     
     
@@ -391,6 +391,8 @@ if __name__ == "__main__":
     A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
                                                pnt_df['Yc_at_min'],
                                                pnt_df['Z_data'])))
+    X, Y = np.meshgrid(x, y)
+    Z = (-A * X - B * Y - D) / C
     
     DAMX_data = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
     DAMY_data = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
@@ -398,6 +400,19 @@ if __name__ == "__main__":
     
     print(f"Score @ min (data): DAMX = {DAMX_data:.2f}", f"DAMY = {DAMY_data:.2f}",
             f"DAMZ = {DAMZ_data:.2f}")
+    
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(10, 10))
+    ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAMX')
+    ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAMY')
+    ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAMZ')
+    ax.scatter(pnt_df['Xc_at_min'], pnt_df['Yc_at_min'],
+               pnt_df['Z_data'], label='min score points')
+    ax.plot_surface(X, Y, Z, alpha=0.5)
+    ax.set_xlabel('X (mm)')
+    ax.set_ylabel('Y (mm)')
+    ax.set_zlabel('Z (mm)')
+    ax.set_title('Best fit plane to Min Score Points (From data)')
+    ax.legend()
      
     # plot the dam positions
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'})
