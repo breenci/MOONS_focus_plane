@@ -1,6 +1,6 @@
 YJ2:
   ext: 2
-  pnts_path: config/points20240527_143953.txt
+  pnts_path: config/points20240527_143953_YJ2.txt
   box_size: 30
   box1D_size: 10
   pixel_size: 0.015
@@ -19,7 +19,7 @@ YJ1:
 
 HH1:  
   ext: 1
-  pnts_path: config/points20240522_145947_H1.txt
+  pnts_path: config/points20240901_095622_HH1.txt
   box_size: 30
   box1D_size: 10
   pixel_size: 0.015
@@ -29,7 +29,7 @@ HH1:
 
 HH2:
   ext: 2
-  pnts_path: config/points20240718_105845.txt
+  pnts_path: config/points20240718_105845_HH2.txt
   box_size: 30
   box1D_size: 10
   pixel_size: 0.015
@@ -66,14 +66,13 @@ LRI1:
 
 LRI2:
   ext: 2
-  pnts_path: config/points20240508_160118.txt
+  pnts_path: config/points20240508_160118_LRI2.txt
   box_size: 30
   box1D_size: 10
   pixel_size: 0.015
   DAM_step_size: 0.01
   xpix: 4256
   ypix: 4256
-
 
 HRI1:
   ext: 1
