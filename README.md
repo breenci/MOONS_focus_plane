@@ -101,7 +101,7 @@ As before, other command line options are available and can be seen by running:
 python plane_fitting.py --help
 ```
 
-Some of the command line options likely to be used are the --option (default 4) to specify the dam offsets, the --filt_bounds to specify the in abd max pixel values to be used in the fitting, and the --max_ratio to specify the maximum ratio of the FWHMx to FWHMy to be used in the fitting.
+Some of the command line options likely to be used are the --option (defaults to 4) to specify the dam offsets, the --filt_bounds to specify the min and max pixel values to be used in the fitting, and the --max_ratio to specify the maximum ratio of the FWHMx to FWHMy to be used in the fitting.
 
 For example:
     
