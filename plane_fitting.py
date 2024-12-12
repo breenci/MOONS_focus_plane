@@ -26,7 +26,7 @@ def DAM_to_mm(DAM_pos, DAM_offsets, DAM_step_size):
     return DAM_x, DAM_y, DAM_z
 
 
-def plane_from_pnts(p1, p2, p3):
+def plane_from_pnts(p1, p2, p3, return_normal=False):
     # Convert points to numpy arrays for vector operations
     p1 = np.array(p1)
     p2 = np.array(p2)
@@ -44,8 +44,10 @@ def plane_from_pnts(p1, p2, p3):
 
     # Calculate the constant terms (D) in the plane equations
     D = -np.sum(normal * p1, axis=1)
-
-    return A, B, C, D
+    if return_normal:
+        return A, B, C, D, normal
+    else:
+        return A, B, C, D
 
 
 def find_point_on_plane(A, B, C, D, known_coords, missing_coord='z'):
@@ -70,7 +72,7 @@ def find_point_on_plane(A, B, C, D, known_coords, missing_coord='z'):
 
 
 # write a function to fit a plane to a set of points
-def plane_fitter(point_coords):
+def plane_fitter(point_coords, return_normal=False):
     '''Fit a plane to a set of points and return the unit normal.'''
 
     # make sure points are in a numpy array
@@ -89,8 +91,10 @@ def plane_fitter(point_coords):
     # extract the coefficients of the plane
     (A, B, C) = norm
     D = -np.sum(norm * centroid)
-    
-    return A, B, C, D
+    if return_normal:
+        return A, B, C, D, norm
+    else:
+        return A, B, C, D
 
 
 def sigma_clip_polyfit(x, y, order, sigma=3, max_iter=5, weights=None):
@@ -199,6 +203,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=numeric_level, 
                         filename=args.save_folder + "plane_fitting.log")
     logging.getLogger().addHandler(logging.StreamHandler())
+    logger.info("Plane fitting started at: " + str(pd.Timestamp.now()))
     
     # Define the DAM offsets
     # Coordinate system is X, Y are in the plane of the detector and Z is along
@@ -226,6 +231,8 @@ if __name__ == "__main__":
     logger.info(f"Pixel size: {pixel_size} mm")
     logger.info(f"DAM step size: {DAM_step_size} mm")
     logger.info(f"Array centre: {array_centre}")
+    logger.info(f"Max Ratio: {args.max_ratio}")
+    logger.info(f"Filter Bounds: {args.filt_bounds}")
     
     # load the data
     logger.info(f"Loading data from {args.input_file}")
@@ -339,10 +346,18 @@ if __name__ == "__main__":
     X, Y = np.meshgrid(x, y)
     
     # find the best fit plane to the min score points
-    A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
+    A, B, C, D, norm = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
                                                pnt_df['Yc_at_min'],
-                                               pnt_df['Zc_at_min'])))
+                                               pnt_df['Zc_at_min'])), return_normal=True)
     Z = (-A * X - B * Y - D) / C
+    
+    logger.info(f"Normal vector to best fit plane: {norm}")
+
+    tiltX = np.arctan(norm[0]/norm[2]) * 180/np.pi
+    logger.info(f"X Tilt of the plane with respect to the Z axis: {tiltX:.2f}")
+    
+    tiltY = np.arctan(norm[1]/norm[2]) * 180/np.pi
+    logger.info(f"Y Tilt of the plane with respect to the Z axis: {tiltY:.2f}")
     
     DAMX_minz = find_point_on_plane(A, B, C, D, DAM_offsets[0][:2], missing_coord='z')
     DAMY_minz = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
@@ -372,6 +387,21 @@ if __name__ == "__main__":
     DAMY_before = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
     DAMZ_before = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
     
+    Z = (-A * X - B * Y - D) / C
+    # plot the dam positions
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(10, 10))
+    ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAMX')
+    ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAMY')
+    ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAMZ')
+    ax.scatter(pnt_df['Xc_at_min'], pnt_df['Yc_at_min'],
+               pnt_df['Z_before'], label='min score points')
+    ax.plot_surface(X, Y, Z, alpha=0.5)
+    ax.set_xlabel('X (mm)')
+    ax.set_ylabel('Y (mm)')
+    ax.set_zlabel('Z (mm)')
+    ax.set_title('Best fit plane to Before')
+    ax.legend()
+    
     A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
                                                   pnt_df['Yc_at_min'],
                                                   pnt_df['Z_after'])))
@@ -380,14 +410,26 @@ if __name__ == "__main__":
     DAMY_after = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
     DAMZ_after = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
     
-    print("Best fit planes:")
-    print(f"Score @ min (fit): DAMX = {DAMX_minz:.2f}", f"DAMY = {DAMY_minz:.2f}", 
-          f"DAMZ = {DAMZ_minz:.2f}")
-    print(f"Score @ {optimal_score} before min: DAMX = {DAMX_before:.2f}", 
-          f"DAMY = {DAMY_before:.2f}", f"DAMZ = {DAMZ_before:.2f}")
-    print(f"Score @ {optimal_score} after min: DAMX = {DAMX_after:.2f}", 
-          f"DAMY = {DAMY_after:.2f}", f"DAMZ = {DAMZ_after:.2f}")
+    Z = (-A * X - B * Y - D) / C
+    # plot the dam positions
+    fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(10, 10))
+    ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAMX')
+    ax.scatter(DAMY_x, DAMY_y, DAMY_z, label='DAMY')
+    ax.scatter(DAMZ_x, DAMZ_y, DAMZ_z, label='DAMZ')
+    ax.scatter(pnt_df['Xc_at_min'], pnt_df['Yc_at_min'],
+               pnt_df['Z_after'], label='min score points')
+    ax.plot_surface(X, Y, Z, alpha=0.5)
+    ax.set_xlabel('X (mm)')
+    ax.set_ylabel('Y (mm)')
+    ax.set_zlabel('Z (mm)')
+    ax.set_title('Best fit plane to After')
+    ax.legend()
     
+    logger.info("Best fit planes:")
+    logger.info(f"Score @ min (fit): DAMX = {DAMX_minz:.2f}, DAMY = {DAMY_minz:.2f}, DAMZ = {DAMZ_minz:.2f}")
+    logger.info(f"Score @ {optimal_score} before min: DAMX = {DAMX_before:.2f}, DAMY = {DAMY_before:.2f}, DAMZ = {DAMZ_before:.2f}")
+    logger.info(f"Score @ {optimal_score} after min: DAMX = {DAMX_after:.2f}, DAMY = {DAMY_after:.2f}, DAMZ = {DAMZ_after:.2f}")
+
     A, B, C, D = plane_fitter(np.column_stack((pnt_df['Xc_at_min'],
                                                pnt_df['Yc_at_min'],
                                                pnt_df['Z_data'])))
@@ -398,8 +440,7 @@ if __name__ == "__main__":
     DAMY_data = find_point_on_plane(A, B, C, D, DAM_offsets[1][:2], missing_coord='z')
     DAMZ_data = find_point_on_plane(A, B, C, D, DAM_offsets[2][:2], missing_coord='z')
     
-    print(f"Score @ min (data): DAMX = {DAMX_data:.2f}", f"DAMY = {DAMY_data:.2f}",
-            f"DAMZ = {DAMZ_data:.2f}")
+    logger.info(f"Score @ min (data): DAMX = {DAMX_data:.2f}, DAMY = {DAMY_data:.2f}, DAMZ = {DAMZ_data:.2f}")
     
     fig, ax = plt.subplots(subplot_kw={'projection': '3d'}, figsize=(10, 10))
     ax.scatter(DAMX_x, DAMX_y, DAMX_z, label='DAMX')
