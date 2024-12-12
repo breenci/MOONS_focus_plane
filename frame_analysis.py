@@ -131,8 +131,7 @@ if __name__ == "__main__":
         raise ValueError('Invalid log level: %s' % args.log)
     logger = logging.getLogger(__name__)
     logging.basicConfig(level=numeric_level, 
-                        filename=args.save_folder + "frame_analysis.log", 
-                        filemode='w')
+                        filename=args.save_folder + "frame_analysis.log")
     # also log to the console
     logging.getLogger().addHandler(logging.StreamHandler())
     # Note the time in the log file
@@ -150,7 +149,6 @@ if __name__ == "__main__":
         else:
             args.preload_selection = config[args.camera]['pnts_path']
     
-    # TODO: Slit position?
     # regex pattern to extract variables
     pattern = r'\.X(\w{1}\-*\d{3})\.Y(\w{1}\-*\d{3})\.Z(\w{1}\-*\d{3})'
     # pattern = r'\.X(\w{1}\d{3})\.Y(\w{1}\d{3})\.Z(\w{1}\d{3})'
@@ -231,7 +229,6 @@ if __name__ == "__main__":
     model1D = GaussianModel()
     
     logger.info("Fitting 2D Gaussian to each region...")
-    # TODO: Clean up the fitting code
     box1D_size = config[args.camera]['box1D_size']
     for i in range(len(full_table)):
         frame = ROI_arr[i]
@@ -288,7 +285,6 @@ if __name__ == "__main__":
     logger.info(f"Table saved at {args.save_folder}")
     
     # plot the regions
-    # TODO: Plotting function
     if args.plot:
         logger.info("Plotting regions...")
         n_pnts = pnts.shape[0]
@@ -315,10 +311,4 @@ if __name__ == "__main__":
                 plt.tight_layout()
                 pdf.savefig(fig)
                 plt.close()
-    logger.info("Regions plotted.")        
-        
-    
-    
-    
-    
-     
+    logger.info("Regions plotted.")
