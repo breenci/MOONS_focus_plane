@@ -1,16 +1,22 @@
 # Set-up Instructions
 ## Installing conda environment:
 
-The required conda environment can be created from the environment.yml file in this repository. To do so, run the following command in the terminal:
+The simplest way to set up the correct conda environment for this project is using make. If you have make installed, you can run the following command in the terminal:
+
+```console
+make create_environment
+```
+
+Alternately the conda environment can be created directly from the environment.yml file in this repository. To do so, run the following command in the terminal:
 
 ```console
 conda env create -f environment.yml
 ```
 
-This will create a new conda environment called emoons_focus. To activate the environment, run:
+Both of these commands will create a conda environment called `moons-focus-plane` with the required dependencies installed. The environment can then be activated with the following command:
 
 ```console
-conda activate emoons_focus
+conda activate moons-focus-plane
 ```
 
 ## Dowloading the test data:
@@ -50,10 +56,11 @@ frame_analysis.py
 focus_finder_gui.py
 README.md
 environment.yml
+Makefile
 ```
 The config folder should contain the cameraConfig.yaml file and the points files for each camera.
 
-The data folder should contain the raw data in the format specified above. The test ID will be the name of the folder containing the raw frames. This will be used to create the processed folder name. The raw frames should be in the same format as cooldown 4B. The DAM positions should be in the file name as X[dam position].Y[dam position].Zp[dam position].fits, where [dam position] is the position of the dam in the x, y, and z directions respectively. The positive dam positions should be in the format "pXXX", and the negative dam positions should be in the format "n-XXX". The dark frame format is not as strict as it will specified by the user from the command line.
+The data folder should contain the raw data in the format specified above. `test_id` is the unique identifier of the test (e.g. cool4B.01.01). This will be used to create the processed folder name. `camera` refers to the name of camera being focused in a given dataset. The DAM positions should be in the file name as X[dam position].Y[dam position].Z[dam position].fits, where [dam position] is the position of the dam in the x, y, and z directions respectively. The positive dam positions should be in the format "pXXX", and the negative dam positions should be in the format "n-XXX". The dark frame format is not as strict as it will specified by the user from the command line.
 
 # Running the code
 
